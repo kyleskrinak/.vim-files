@@ -91,6 +91,10 @@ if !exists(":DiffOrig")
   command DiffOrig vert new | set bt=nofile | r # | 0d_ | diffthis
 		  \ | wincmd p | diffthis
 endif
+if &t_Co == 256
+   colorscheme xoria256
+endif
+
 colorscheme koehler
 
 au FileType html compiler tidy
