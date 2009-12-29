@@ -1,7 +1,7 @@
 " An example for a vimrc file.
 "
 " Maintainer:	Bram Moolenaar <Bram@vim.org>
-" Last change:	2008 Jul 02
+" Last change:	2008 Dec 17
 "
 " To use it, copy it to
 "     for Unix and OS/2:  ~/.vimrc
@@ -14,7 +14,7 @@ if v:progname =~? "evim"
   finish
 endif
 
-" Use Vim settings, rather then Vi settings (much better!).
+" Use Vim settings, rather than Vi settings (much better!).
 " This must be first, because it changes other options as a side effect.
 set nocompatible
 
@@ -91,6 +91,7 @@ if !exists(":DiffOrig")
   command DiffOrig vert new | set bt=nofile | r # | 0d_ | diffthis
 		  \ | wincmd p | diffthis
 endif
+
 if &t_Co == 256
    colorscheme xoria256
 endif
@@ -102,6 +103,20 @@ setlocal equalprg=tidy\ --output-xhtml\ y\ -utf8\ --indent\ auto\ --wrap\ 0\ --s
 autocmd BufReadPre *.doc set ro
 autocmd BufReadPre *.doc set hlsearch!
 autocmd BufReadPost *.doc %!antiword "%"
+autocmd BufRead *.safari setfiletype html
 
 set lbr
 set cursorline
+
+set guifont=Bitstream\ Vera\ Sans\ Mono:h14
+
+let g:html_tag_case="l"          " html.vim: use lower case html tags
+let g:no_html_toolbar="no"       " html.vim: don't use toolbar
+let g:no_html_menu = 'yes'
+
+if has("gui_running")
+  " GUI is running or is about to start.
+  " Maximize gvim window.
+  set lines=50 columns=120
+endif
+
