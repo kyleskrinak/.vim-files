@@ -25,6 +25,8 @@
 'NERDTreeWinSize'	NERD_tree.txt	/*'NERDTreeWinSize'*
 'loaded_nerd_tree'	NERD_tree.txt	/*'loaded_nerd_tree'*
 :ColorSelect	HTML.txt	/*:ColorSelect*
+:HTMLSpecialChars	htmlspecialchars.txt	/*:HTMLSpecialChars*
+:HTMLSpecialCharsDecode	htmlspecialchars.txt	/*:HTMLSpecialCharsDecode*
 :HTMLmappings	HTML.txt	/*:HTMLmappings*
 :NERDTree	NERD_tree.txt	/*:NERDTree*
 :NERDTreeClose	NERD_tree.txt	/*:NERDTreeClose*
@@ -44,6 +46,8 @@ HTML-reload-macros	HTML.txt	/*HTML-reload-macros*
 HTML-reload-mappings	HTML.txt	/*HTML-reload-mappings*
 HTML.txt	HTML.txt	/*HTML.txt*
 HTML.vim	HTML.txt	/*HTML.vim*
+HTMLSpecialChars	htmlspecialchars.txt	/*HTMLSpecialChars*
+HTMLSpecialCharsDecode	htmlspecialchars.txt	/*HTMLSpecialCharsDecode*
 HTMLencodeString()	HTML.txt	/*HTMLencodeString()*
 HTMLgenerateTable()	HTML.txt	/*HTMLgenerateTable()*
 HTMLmap()	HTML.txt	/*HTMLmap()*
@@ -164,6 +168,8 @@ g:html_tag_case_autodetect	HTML.txt	/*g:html_tag_case_autodetect*
 g:html_template	HTML.txt	/*g:html_template*
 g:html_textcolor	HTML.txt	/*g:html_textcolor*
 g:html_vlinkcolor	HTML.txt	/*g:html_vlinkcolor*
+g:htmlspecialchars_ent_noquotes	htmlspecialchars.txt	/*g:htmlspecialchars_ent_noquotes*
+g:htmlspecialchars_ent_quotes	htmlspecialchars.txt	/*g:htmlspecialchars_ent_quotes*
 g:no_html_map_override	HTML.txt	/*g:no_html_map_override*
 g:no_html_maps	HTML.txt	/*g:no_html_maps*
 g:no_html_menu	HTML.txt	/*g:no_html_menu*
@@ -191,6 +197,9 @@ html-tags	HTML.txt	/*html-tags*
 html-template-tokens	HTML.txt	/*html-template-tokens*
 html-tokens	HTML.txt	/*html-tokens*
 html-variables	HTML.txt	/*html-variables*
+htmlspecialchars	htmlspecialchars.txt	/*htmlspecialchars*
+htmlspecialchars-customization	htmlspecialchars.txt	/*htmlspecialchars-customization*
+htmlspecialchars.txt	htmlspecialchars.txt	/*htmlspecialchars.txt*
 i_&!	HTML.txt	/*i_&!*
 i_&#	HTML.txt	/*i_&#*
 i_&&	HTML.txt	/*i_&&*
