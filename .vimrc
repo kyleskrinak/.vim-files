@@ -21,7 +21,7 @@ set nocompatible
 " allow backspacing over everything in insert mode
 set backspace=indent,eol,start
 
-set nobackup		" do not keep a backup file, use versions instead
+set nobackup		" do not keep a backup file, use version instead
 
 set history=50		" keep 50 lines of command line history
 set ruler		" show the cursor position all the time
@@ -108,7 +108,21 @@ autocmd BufRead *.safari setfiletype html
 set lbr
 set cursorline
 
-set guifont=Bitstream\ Vera\ Sans\ Mono:h14
+if has("gui_running")
+  if has("gui_gtk2")
+    set guifont=Bitstream\ Vera\ Sans\ Mono \14
+  elseif has("gui_photon")
+    set guifont=Bitstream\ Vera\ Sans\ Mono:h14
+  elseif has("gui_kde")
+    set guifont=Bitstream\ Vera\ Sans\ Mono\14/-1/5/50/0/0/0/1/0
+  elseif has("x11")
+    set guifont=-*-courier-medium-r-normal-*-*-180-*-*-m-*-*
+  else
+    set guifont=Bitstream\ Vera\ Sans\ Mono:h14:cDEFAULT
+  endif
+endif
+
+
 
 let g:html_tag_case="l"          " html.vim: use lower case html tags
 let g:no_html_toolbar="no"       " html.vim: don't use toolbar
@@ -119,4 +133,3 @@ if has("gui_running")
   " Maximize gvim window.
   set lines=50 columns=120
 endif
-
