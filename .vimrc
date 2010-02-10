@@ -125,11 +125,13 @@ endif
 
 
 let g:html_tag_case="l"          " html.vim: use lower case html tags
-let g:no_html_toolbar="no"       " html.vim: don't use toolbar
-let g:no_html_menu = 'yes'
+" let g:no_html_toolbar="no"       " html.vim: don't use toolbar
+" let g:no_html_menu = 'yes'
 
 if has("gui_running")
   " GUI is running or is about to start.
   " Maximize gvim window.
   set lines=50 columns=120
 endif
+
+map N :NERDTreeToggle<CR>
