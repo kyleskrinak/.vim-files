@@ -99,6 +99,9 @@ endif
 colorscheme koehler
 
 au FileType html compiler tidy
+au FileType asp compiler tidy
+au BufNewFile,BufRead *.asp set filetype=xhtml
+
 setlocal equalprg=tidy\ --output-xhtml\ y\ -utf8\ --indent\ auto\ --wrap\ 0\ --show-body-only\ auto\ --preserve-entities\ 1\ -q\ -f\ /tmp/err
 autocmd BufReadPre *.doc set ro
 autocmd BufReadPre *.doc set hlsearch!
@@ -134,4 +137,5 @@ if has("gui_running")
   set lines=50 columns=120
 endif
 
-map N :NERDTreeToggle<CR>
+map <C-N> :NERDTreeToggle<CR>
+map ,in :set ts=8<CR>1G=G:set ts=2<CR>`.
