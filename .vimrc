@@ -139,3 +139,10 @@ endif
 
 map <C-N> :NERDTreeToggle<CR>
 map ,in :set ts=8<CR>1G=G:set ts=2<CR>`.
+
+function! RunCommands()
+  echomsg system(getline('.'))
+endfunction
+command -range RunCommands <line1>,<line2>call RunCommands()
+vmap ,r :RunCommands<CR>
+
