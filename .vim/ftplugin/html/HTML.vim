@@ -2,8 +2,8 @@
 "
 " Author:      Christian J. Robinson <heptite@gmail.com>
 " URL:         http://christianrobinson.name/vim/HTML/
-" Last Change: May 27, 2011
-" Version:     0.38.1
+" Last Change: October 13, 2011
+" Version:     0.40.0
 " Original Concept: Doug Renze
 "
 "
@@ -52,7 +52,7 @@
 " - Add :HTMLmappingsreload/html/xhtml to the HTML menu?
 "
 " ---- RCS Information: ------------------------------------------------- {{{1
-" $Id: HTML.vim,v 1.222 2011/05/27 17:24:11 infynity Exp $
+" $Id: HTML.vim,v 1.231 2011/10/13 19:41:14 infynity Exp $
 " ----------------------------------------------------------------------- }}}1
 
 " ---- Initialization: -------------------------------------------------- {{{1
@@ -253,35 +253,55 @@ let g:did_html_functions = 1
 
 " HTMLencodeString()  {{{2
 "
-" Encode the characters in a string into their HTML &#...; representations.
+" Encode the characters in a string to/from their HTML representations.
 "
 " Arguments:
-"  1 - String:  The string to encode.
+"  1 - String:  The string to encode/decode.
 "  2 - String:  Optional, whether to decode rather than encode the string:
-"                d/decode: Decode the &#...; elements of the provided string
-"                anything else: Encode the string (default)
+"               - d/decode: Decode the %XX, &#...;, and &#x...; elements of
+"                           the provided string
+"               - %:        Encode as a %XX string
+"               - x:        Encode as a &#x...; string
+"               - omitted:  Encode as a &#...; string
+"               - other:    No change to the string
 " Return Value:
 "  String:  The encoded string.
 function! HTMLencodeString(string, ...)
-  let out = ''
+  let out = a:string
 
-  if a:0 > 0
-    if a:1 =~? '^d\(ecode\)\=$'
-      let out = substitute(a:string, '&#\(\d\+\);', '\=nr2char(submatch(1))', 'g')
-      let out = substitute(out, '%\(\x\{2}\)', '\=nr2char("0x".submatch(1))', 'g')
-      return out
-    elseif a:1 == '%'
-      let out = substitute(a:string, '\(.\)', '\=printf("%%%02X", char2nr(submatch(1)))', 'g')
-      return out
-    endif
+  if a:0 == 0
+    let out = substitute(out, '.', '\=printf("&#%d;",  char2nr(submatch(0)))', 'g')
+  elseif a:1 == 'x'
+    let out = substitute(out, '.', '\=printf("&#x%x;", char2nr(submatch(0)))', 'g')
+  elseif a:1 == '%'
+    let out = substitute(out, '[\x00-\x99]', '\=printf("%%%02X", char2nr(submatch(0)))', 'g')
+  elseif a:1 =~? '^d\(ecode\)\=$'
+    let out = substitute(out, '\(&#x\x\+;\|&#\d\+;\|%\x\x\)', '\=HTMLdecodeSymbol(submatch(1))', 'g')
   endif
 
-  let string = split(a:string, '\zs')
-  for c in string
-    let out = out . '&#' . char2nr(c) . ';'
-  endfor
-
   return out
+endfunction
+
+" HTMLdecodeSymbol()  {{{2
+"
+" Decode the HTML symbol string to its literal character counterpart
+"
+" Arguments:
+"  1 - String:  The string to decode.
+" Return Value:
+"  Character:  The decoded character.
+function! HTMLdecodeSymbol(symbol)
+  if a:symbol =~ '&#\(x\x\+\);'
+    let char = nr2char('0' . strpart(a:symbol, 2, strlen(a:symbol) - 3))
+  elseif a:symbol =~ '&#\(\d\+\);'
+    let char = nr2char(strpart(a:symbol, 2, strlen(a:symbol) - 3))
+  elseif a:symbol =~ '%\(\x\x\)'
+    let char = nr2char('0x' . strpart(a:symbol, 1, strlen(a:symbol) - 1))
+  else
+    let char = a:symbol
+  endif
+
+  return char
 endfunction
 
 " HTMLmap()  {{{2
@@ -412,6 +432,23 @@ function! s:MapCheck(map, mode)
   endif
 
   return 0
+endfunction
+
+" s:SI()  {{{2
+" 
+" 'Escape' special characters with a control-v so Vim doesn't handle them as
+" special keys during insertion.  For use in <C-R>=... type calls in mappings.
+"
+" Arguments:
+"  1 - String: The string to escape.
+" Return Value:
+"  String: The 'escaped' string.
+"
+" Limitations:
+"  Null strings have to be left unescaped, due to a limitation in Vim itself.
+"  (VimL represents newline characters as nulls...ouch.)
+function! s:SI(str)
+  return substitute(a:str, '[^\x00\x20-\x7E]', '\="\x16" . submatch(0)', 'g')
 endfunction
 
 " s:WR()  {{{2
@@ -664,7 +701,8 @@ function! HTMLnextInsertPoint(...)
     if strpart(getline(line('.')), col('.') - 1, 2) == '</'
       normal %
       let done = 1
-    elseif strpart(getline(line('.')), col('.') - 1, 4) =~ ' *-->'
+    "elseif strpart(getline(line('.')), col('.') - 1, 4) =~ ' *-->'
+    elseif strpart(getline(line('.')), col('.') - 1) =~ '^ *-->'
       normal f>
       let done = 1
     else
@@ -1204,14 +1242,25 @@ function! s:ColorSelect(bufnr, ...)
   echo color
 endfunction
 
-function! s:ShellEscape(str) " {{{2
+" s:ShellEscape()  {{{2
+"
+" Quote a string and escape characters that the shell may treat as special.
+"
+" Arguments:
+"  String
+" Return Value:
+"  Escaped string
+"
+" Limitations:
+"  This function doesn't know how to escape for non-Unix OSes if the
+"  shellescape() internal Vim function is nonexistant.
+function! s:ShellEscape(str)
 	if exists('*shellescape')
 		return shellescape(a:str)
 	else
     if has('unix')
       return "'" . substitute(a:str, "'", "'\\\\''", 'g') . "'"
     else
-      " Don't know how to properly escape for 'doze, so don't bother:
       return a:str
     endif
 	endif
@@ -1888,7 +1937,7 @@ call HTMLmap("inoremap", "<lead>sj", "<[{SCRIPT SRC}]=\"\" [{TYPE}]=\"text/javas
 call HTMLmap("inoremap", "<lead>eb", "<[{EMBED SRC=\"\" WIDTH=\"\" HEIGHT}]=\"\" /><CR><[{NOEMBED></NOEMBED}]><ESC>k$5F\"i")
 
 "       NOSCRIPT
-call HTMLmap("inoremap", "<lead>ns", "<[{NOSCRIPT}]><CR></[{NOSCRIP}]T><C-O>O")
+call HTMLmap("inoremap", "<lead>ns", "<[{NOSCRIPT}]><CR></[{NOSCRIPT}]><C-O>O")
 call HTMLmap("vnoremap", "<lead>ns", "<ESC>`>a<CR></[{NOSCRIPT}]><C-O>`<<[{NOSCRIPT}]><CR><ESC>", 1)
 call HTMLmapo('<lead>ns', 0)
 
@@ -1896,6 +1945,11 @@ call HTMLmapo('<lead>ns', 0)
 call HTMLmap("inoremap", "<lead>ob", "<[{OBJECT DATA=\"\" WIDTH=\"\" HEIGHT}]=\"\"><CR></[{OBJECT}]><ESC>k$5F\"i")
 call HTMLmap("vnoremap", "<lead>ob", "<ESC>`>a<CR></[{OBJECT}]><C-O>`<<[{OBJECT DATA=\"\" WIDTH=\"\" HEIGHT}]=\"\"><CR><ESC>k$5F\"", 1)
 call HTMLmapo('<lead>ob', 0)
+
+"       PARAM (Object Parameter)
+call HTMLmap("inoremap", "<lead>pm", "<[{PARAM NAME=\"\" VALUE}]=\"\" /><ESC>3F\"i")
+call HTMLmap("vnoremap", "<lead>pm", "<ESC>`>a\" [{VALUE}]=\"\" /><C-O>`<<[{PARAM NAME}]=\"<ESC>3f\"i", 0)
+call HTMLmapo('<lead>pm', 0)
 
 " Table stuff:
 call HTMLmap("inoremap", "<lead>ca", "<[{CAPTION></CAPTION}]><C-O>F<")
@@ -2003,20 +2057,23 @@ call HTMLmapo("<lead>lA", 1)
 
 " ---- Special Character (Character Entities) Mappings: ----------------- {{{1
 
-" Convert the character under the cursor or the highlighted string to straight
+" Convert the character under the cursor or the highlighted string to decimal
 " HTML entities:
-call HTMLmap("vnoremap", "<lead>&", "s<C-R>=HTMLencodeString(@\")<CR><Esc>")
-"call HTMLmap("nnoremap", "<lead>&", "s<C-R>=HTMLencodeString(@\")<CR><Esc>")
+call HTMLmap("vnoremap", "<lead>&", "s<C-R>=<SID>SI(HTMLencodeString(@\"))<CR><Esc>")
 call HTMLmapo("<lead>&", 0)
+
+" Convert the character under the cursor or the highlighted string to hex
+" HTML entities:
+call HTMLmap("vnoremap", "<lead>*", "s<C-R>=<SID>SI(HTMLencodeString(@\", 'x'))<CR><Esc>")
+call HTMLmapo("<lead>*", 0)
 
 " Convert the character under the cursor or the highlighted string to a %XX
 " string:
-call HTMLmap("vnoremap", "<lead>%", "s<C-R>=HTMLencodeString(@\", '%')<CR><Esc>")
-"call HTMLmap("nnoremap", "<lead>%", "s<C-R>=HTMLencodeString(@\", '%')<CR><Esc>")
+call HTMLmap("vnoremap", "<lead>%", "s<C-R>=<SID>SI(HTMLencodeString(@\", '%'))<CR><Esc>")
 call HTMLmapo("<lead>%", 0)
 
 " Decode a &#...; or %XX encoded string:
-call HTMLmap("vnoremap", "<lead>^", "s<C-R>=HTMLencodeString(@\", 'd')<CR><Esc>")
+call HTMLmap("vnoremap", "<lead>^", "s<C-R>=<SID>SI(HTMLencodeString(@\", 'd'))<CR><Esc>")
 call HTMLmapo("<lead>^", 0)
 
 call HTMLmap("inoremap", "<elead>&", "&amp;")
@@ -2099,22 +2156,51 @@ call HTMLmap("inoremap", "<elead>dg", "&deg;")
 call HTMLmap("inoremap", "<elead>1^", "&sup1;")
 call HTMLmap("inoremap", "<elead>2^", "&sup2;")
 call HTMLmap("inoremap", "<elead>3^", "&sup3;")
+"call HTMLmap("inoremap", "<elead>4^", "&sup4;")
+"call HTMLmap("inoremap", "<elead>5^", "&sup5;")
+"call HTMLmap("inoremap", "<elead>6^", "&sup6;")
+"call HTMLmap("inoremap", "<elead>7^", "&sup7;")
+"call HTMLmap("inoremap", "<elead>8^", "&sup8;")
+"call HTMLmap("inoremap", "<elead>9^", "&sup9;")
+"call HTMLmap("inoremap", "<elead>1v", "&sub1;")
+"call HTMLmap("inoremap", "<elead>2v", "&sub2;")
+"call HTMLmap("inoremap", "<elead>3v", "&sub3;")
+"call HTMLmap("inoremap", "<elead>4v", "&sub4;")
+"call HTMLmap("inoremap", "<elead>5v", "&sub5;")
+"call HTMLmap("inoremap", "<elead>6v", "&sub6;")
+"call HTMLmap("inoremap", "<elead>7v", "&sub7;")
+"call HTMLmap("inoremap", "<elead>8v", "&sub8;")
+"call HTMLmap("inoremap", "<elead>9v", "&sub9;")
 call HTMLmap("inoremap", "<elead>mi", "&micro;")
 call HTMLmap("inoremap", "<elead>pa", "&para;")
 call HTMLmap("inoremap", "<elead>se", "&sect;")
 call HTMLmap("inoremap", "<elead>.", "&middot;")
+call HTMLmap("inoremap", "<elead>*", "&bull;")
 call HTMLmap("inoremap", "<elead>x", "&times;")
 call HTMLmap("inoremap", "<elead>/", "&divide;")
 call HTMLmap("inoremap", "<elead>+-", "&plusmn;")
-call HTMLmap("inoremap", "<elead>14", "&frac14;")
-call HTMLmap("inoremap", "<elead>12", "&frac12;")
-call HTMLmap("inoremap", "<elead>34", "&frac34;")
 call HTMLmap("inoremap", "<elead>n-", "&ndash;")  " Math symbol
 call HTMLmap("inoremap", "<elead>2-", "&ndash;")  " ...
 call HTMLmap("inoremap", "<elead>m-", "&mdash;")  " Sentence break
 call HTMLmap("inoremap", "<elead>3-", "&mdash;")  " ...
 call HTMLmap("inoremap", "<elead>--", "&mdash;")  " ...
 call HTMLmap("inoremap", "<elead>3.", "&hellip;")
+" Fractions:
+call HTMLmap("inoremap", "<elead>14", "&frac14;")
+call HTMLmap("inoremap", "<elead>12", "&frac12;")
+call HTMLmap("inoremap", "<elead>34", "&frac34;")
+call HTMLmap("inoremap", "<elead>13", "&frac13;")
+call HTMLmap("inoremap", "<elead>23", "&frac23;")
+call HTMLmap("inoremap", "<elead>15", "&frac15;")
+call HTMLmap("inoremap", "<elead>25", "&frac25;")
+call HTMLmap("inoremap", "<elead>35", "&frac35;")
+call HTMLmap("inoremap", "<elead>45", "&frac45;")
+call HTMLmap("inoremap", "<elead>16", "&frac16;")
+call HTMLmap("inoremap", "<elead>56", "&frac56;")
+call HTMLmap("inoremap", "<elead>18", "&frac18;")
+call HTMLmap("inoremap", "<elead>38", "&frac38;")
+call HTMLmap("inoremap", "<elead>58", "&frac58;")
+call HTMLmap("inoremap", "<elead>78", "&frac78;") 
 " Greek letters:
 "   ... Capital:
 call HTMLmap("inoremap", "<elead>Al", "&Alpha;")
@@ -2182,6 +2268,40 @@ call HTMLmap("inoremap", "<elead>uA", "&uArr;")
 call HTMLmap("inoremap", "<elead>rA", "&rArr;")
 call HTMLmap("inoremap", "<elead>dA", "&dArr;")
 call HTMLmap("inoremap", "<elead>hA", "&hArr;")
+" Roman numerals, upppercase:
+call HTMLmap("inoremap", "<elead>R1",    "&#x2160;")
+call HTMLmap("inoremap", "<elead>R2",    "&#x2161;")
+call HTMLmap("inoremap", "<elead>R3",    "&#x2162;")
+call HTMLmap("inoremap", "<elead>R4",    "&#x2163;")
+call HTMLmap("inoremap", "<elead>R5",    "&#x2164;")
+call HTMLmap("inoremap", "<elead>R6",    "&#x2165;")
+call HTMLmap("inoremap", "<elead>R7",    "&#x2166;")
+call HTMLmap("inoremap", "<elead>R8",    "&#x2167;")
+call HTMLmap("inoremap", "<elead>R9",    "&#x2168;")
+call HTMLmap("inoremap", "<elead>R10",   "&#x2169;")
+call HTMLmap("inoremap", "<elead>R11",   "&#x216a;")
+call HTMLmap("inoremap", "<elead>R12",   "&#x216b;")
+call HTMLmap("inoremap", "<elead>R50",   "&#x216c;")
+call HTMLmap("inoremap", "<elead>R100",  "&#x216d;")
+call HTMLmap("inoremap", "<elead>R500",  "&#x216e;")
+call HTMLmap("inoremap", "<elead>R1000", "&#x216f;")
+" Roman numerals, lowercase:
+call HTMLmap("inoremap", "<elead>r1",    "&#x2170;")
+call HTMLmap("inoremap", "<elead>r2",    "&#x2171;")
+call HTMLmap("inoremap", "<elead>r3",    "&#x2172;")
+call HTMLmap("inoremap", "<elead>r4",    "&#x2173;")
+call HTMLmap("inoremap", "<elead>r5",    "&#x2174;")
+call HTMLmap("inoremap", "<elead>r6",    "&#x2175;")
+call HTMLmap("inoremap", "<elead>r7",    "&#x2176;")
+call HTMLmap("inoremap", "<elead>r8",    "&#x2177;")
+call HTMLmap("inoremap", "<elead>r9",    "&#x2178;")
+call HTMLmap("inoremap", "<elead>r10",   "&#x2179;")
+call HTMLmap("inoremap", "<elead>r11",   "&#x217a;")
+call HTMLmap("inoremap", "<elead>r12",   "&#x217b;")
+call HTMLmap("inoremap", "<elead>r50",   "&#x217c;")
+call HTMLmap("inoremap", "<elead>r100",  "&#x217d;")
+call HTMLmap("inoremap", "<elead>r500",  "&#x217e;")
+call HTMLmap("inoremap", "<elead>r1000", "&#x217f;")
 
 " ----------------------------------------------------------------------------
 
@@ -2673,22 +2793,35 @@ HTMLemenu HTML.Character\ Entities.Inverted\ Exlamation !        ¡
 HTMLemenu HTML.Character\ Entities.Inverted\ Question   ?        ¿
 HTMLemenu HTML.Character\ Entities.Paragraph            pa       ¶
 HTMLemenu HTML.Character\ Entities.Section              se       §
-HTMLemenu HTML.Character\ Entities.Middle\ Dot          .        ·
+HTMLemenu HTML.Character\ Entities.Middle\ Dot          \.       ·
+HTMLemenu HTML.Character\ Entities.Bullet               *        •
 HTMLemenu HTML.Character\ Entities.En\ dash             n-       \-
 HTMLemenu HTML.Character\ Entities.Em\ dash             m-       --
-HTMLemenu HTML.Character\ Entities.Ellipsis             3.       ...
+HTMLemenu HTML.Character\ Entities.Ellipsis             3\.      ...
  menu HTML.Character\ Entities.-sep5- <nul>
 HTMLemenu HTML.Character\ Entities.Math.Multiply        x   ×
 HTMLemenu HTML.Character\ Entities.Math.Divide          /   ÷
+HTMLemenu HTML.Character\ Entities.Math.Degree          dg  °
+HTMLemenu HTML.Character\ Entities.Math.Micro           mi  µ
 HTMLemenu HTML.Character\ Entities.Math.Plus/Minus      +-  ±
-HTMLemenu HTML.Character\ Entities.Math.One\ Quarter    14  ¼
-HTMLemenu HTML.Character\ Entities.Math.One\ Half       12  ½
-HTMLemenu HTML.Character\ Entities.Math.Three\ Quarters 34  ¾
 HTMLemenu HTML.Character\ Entities.Math.Superscript\ 1  1^  ¹
 HTMLemenu HTML.Character\ Entities.Math.Superscript\ 2  2^  ²
 HTMLemenu HTML.Character\ Entities.Math.Superscript\ 3  3^  ³
-HTMLemenu HTML.Character\ Entities.Math.Degree          dg  °
-HTMLemenu HTML.Character\ Entities.Math.Micro           mi  µ
+HTMLemenu HTML.Character\ Entities.Math.Fractions.One\ Quarter    14  ¼
+HTMLemenu HTML.Character\ Entities.Math.Fractions.One\ Half       12  ½
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Three\ Quarters 34  ¾
+HTMLemenu HTML.Character\ Entities.Math.Fractions.One\ Third      13  ⅓
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Two\ Thirds     23  ⅔
+HTMLemenu HTML.Character\ Entities.Math.Fractions.One\ Fifth      15  ⅕
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Two\ Fifths     25  ⅖
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Three\ Fifths   35  ⅗
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Four\ Fiftsh    45  ⅘
+HTMLemenu HTML.Character\ Entities.Math.Fractions.One\ Sixth      16  ⅙
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Five\ Sixths    56  ⅚
+HTMLemenu HTML.Character\ Entities.Math.Fractions.One\ Eigth      18  ⅛
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Three\ Eigths   38  ⅜
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Five\ Eigths    58  ⅝
+HTMLemenu HTML.Character\ Entities.Math.Fractions.Seven\ Eigths   78  ⅞
 HTMLemenu HTML.Character\ Entities.&Graves.A-grave  A`  À
 HTMLemenu HTML.Character\ Entities.&Graves.a-grave  a`  à
 HTMLemenu HTML.Character\ Entities.&Graves.E-grave  E`  È
@@ -3297,6 +3430,9 @@ HTMLmenu nmenu - HTML.&More\.\.\..NOSCRIPT                  nj i
 HTMLmenu imenu - HTML.&More\.\.\..Generic\ Embedded\ Object ob 
 HTMLmenu vmenu - HTML.&More\.\.\..Generic\ Embedded\ Object ob 
 HTMLmenu nmenu - HTML.&More\.\.\..Generic\ Embedded\ Object ob i
+HTMLmenu imenu - HTML.&More\.\.\..Object\ Parameter         pm 
+HTMLmenu vmenu - HTML.&More\.\.\..Object\ Parameter         pm 
+HTMLmenu nmenu - HTML.&More\.\.\..Object\ Parameter         pm i
 HTMLmenu imenu - HTML.&More\.\.\..Quoted\ Text              qu 
 HTMLmenu vmenu - HTML.&More\.\.\..Quoted\ Text              qu 
 HTMLmenu nmenu - HTML.&More\.\.\..Quoted\ Text              qu i
@@ -3317,7 +3453,9 @@ endif
 
 " ---- Clean Up: -------------------------------------------------------- {{{1
 
-silent! unlet s:browsers
+if exists('s:browsers')
+  unlet s:browsers
+endif
 
 if exists(':HTMLmenu')
   delcommand HTMLmenu

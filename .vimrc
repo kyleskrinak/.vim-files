@@ -99,6 +99,7 @@ endif
 colorscheme koehler
 
 au FileType html compiler tidy
+au BufRead,BufNewFile *.scss set filetype=scss
 au FileType asp compiler tidy
 au BufNewFile,BufRead *.asp set filetype=xhtml
 
@@ -137,7 +138,7 @@ if has("gui_running")
   set lines=50 columns=120
 endif
 
-map <C-N> :NERDTreeToggle<CR>
+map ,nt :NERDTreeToggle<CR>
 map ,in :set ts=8<CR>1G=G:set ts=2<CR>`.
 set sw=2
 
